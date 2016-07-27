@@ -39,10 +39,8 @@ import com.sun.pdfview.font.PDFFont;
 
 import net.sf.andpdf.nio.ByteBuffer;
 import net.sf.andpdf.pdfviewer.gui.FullScrollView;
-import net.sf.andpdf.pdfviewer.gui.PdfView;
 import net.sf.andpdf.refs.HardReference;
 
-import java.io.File;
 import java.io.IOException;
 
 /**
@@ -51,8 +49,6 @@ import java.io.IOException;
  * @author ferenc.hechler
  */
 public class PdfViewerActivity extends Activity {
-
-    public static final String BUNDLE_KEY = "BUNDLE_KEY";
 
     private static final int STARTPAGE = 1;
     private static final float STARTZOOM = 1.0f;
@@ -87,7 +83,6 @@ public class PdfViewerActivity extends Activity {
     public static byte[] byteArray;
     private int mPage;
     private float mZoom;
-    private File mTmpFile;
     private ProgressDialog progress;
 
     private PDFPage mPdfPage;
@@ -112,7 +107,6 @@ public class PdfViewerActivity extends Activity {
             mPage = inst.mPage;
             mPdfFile = inst.mPdfFile;
             mPdfPage = inst.mPdfPage;
-            mTmpFile = inst.mTmpFile;
             mZoom = inst.mZoom;
             backgroundThread = inst.backgroundThread;
         }
@@ -133,8 +127,8 @@ public class PdfViewerActivity extends Activity {
             mGraphView = new GraphView(this);
             mGraphView.mBi = mOldGraphView.mBi;
             mOldGraphView = null;
-            mGraphView.mImageView.setImageBitmap(mGraphView.mBi);
-            //            mGraphView.updateTexts();
+            mGraphView.pdfView.setImageBitmap(mGraphView.mBi);
+            mGraphView.updateTexts();
             setContentView(mGraphView);
         } else {
             mGraphView = new GraphView(this);
@@ -157,7 +151,6 @@ public class PdfViewerActivity extends Activity {
     private void setContent(String password) {
         try {
             openFile(byteArray, password);
-            pdfView.setmPdfFile(mPdfFile);
             setContentView(mGraphView);
             startRenderThread(mPage, mZoom);
         } catch (PDFAuthenticationFailureException e) {
@@ -201,8 +194,10 @@ public class PdfViewerActivity extends Activity {
 
     private void updateImageStatus() {
         if (backgroundThread == null) {
+            mGraphView.updateUi();
             return;
         }
+        mGraphView.updateUi();
         mGraphView.postDelayed(new Runnable() {
             public void run() {
                 updateImageStatus();
@@ -382,13 +377,12 @@ public class PdfViewerActivity extends Activity {
         return null;
     }
 
-    //TODO
-    PdfView pdfView;
 
     private class GraphView extends FullScrollView {
         public Bitmap mBi;
-        public ImageView mImageView;
+        public ImageView pdfView;
         public Button mBtPage;
+        private Button mBtPage2;
 
         ImageButton bZoomOut;
         ImageButton bZoomIn;
@@ -396,13 +390,11 @@ public class PdfViewerActivity extends Activity {
         public GraphView(Context context) {
             super(context);
 
-            LinearLayout.LayoutParams lpWrap1 =
-                    new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
-            LinearLayout.LayoutParams lpWrap10 =
-                    new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
+//            LinearLayout.LayoutParams matchLp =
+//                    new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
 
-            LinearLayout.LayoutParams matchLp =
-                    new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
+            LinearLayout.LayoutParams lpWrap1 = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, 1);
+            LinearLayout.LayoutParams lpWrap10 = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, 10);
 
             LinearLayout vl = new LinearLayout(context);
             vl.setLayoutParams(lpWrap10);
@@ -411,20 +403,19 @@ public class PdfViewerActivity extends Activity {
             if (mOldGraphView == null) {
                 progress = ProgressDialog.show(PdfViewerActivity.this, "Loading", "Loading PDF Page", true, true);
             }
-            //TODO
-            pdfView = new PdfView(PdfViewerActivity.this);
 
             addNavButtons(vl);
+            // remember page button for updates
+            mBtPage2 = mBtPage;
 
-            mImageView = new ImageView(context);
+            pdfView = new ImageView(context);
             setPageBitmap(null);
             updateImage();
-            mImageView.setLayoutParams(lpWrap1);
-            vl.addView(mImageView);
+            pdfView.setLayoutParams(lpWrap1);
+            pdfView.setPadding(5, 5, 5, 5);
             vl.addView(pdfView);
-            pdfView.setLayoutParams(matchLp);
 
-            setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+            setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT, 100));
             setBackgroundColor(Color.LTGRAY);
             setHorizontalScrollBarEnabled(true);
             setHorizontalFadingEdgeEnabled(true);
@@ -435,10 +426,8 @@ public class PdfViewerActivity extends Activity {
 
         private void addNavButtons(ViewGroup vg) {
 
-            LinearLayout.LayoutParams lpChild1 =
-                    new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
-            LinearLayout.LayoutParams lpWrap10 =
-                    new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+            LinearLayout.LayoutParams lpChild1 = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, 1);
+            LinearLayout.LayoutParams lpWrap10 = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, 10);
 
             Context context = vg.getContext();
             LinearLayout hl = new LinearLayout(context);
@@ -479,7 +468,6 @@ public class PdfViewerActivity extends Activity {
             bPrev.setOnClickListener(new OnClickListener() {
                 public void onClick(View v) {
                     prevPage();
-                    updatePageNumber();
                 }
             });
             hl.addView(bPrev);
@@ -491,7 +479,6 @@ public class PdfViewerActivity extends Activity {
             mBtPage.setOnClickListener(new OnClickListener() {
                 public void onClick(View v) {
                     gotoPage();
-                    updatePageNumber();
                 }
             });
             hl.addView(mBtPage);
@@ -504,7 +491,6 @@ public class PdfViewerActivity extends Activity {
             bNext.setOnClickListener(new OnClickListener() {
                 public void onClick(View v) {
                     nextPage();
-                    updatePageNumber();
                 }
             });
             hl.addView(bNext);
@@ -524,7 +510,15 @@ public class PdfViewerActivity extends Activity {
         private void updateImage() {
             uiHandler.post(new Runnable() {
                 public void run() {
-                    mImageView.setImageBitmap(mBi);
+                    pdfView.setImageBitmap(mBi);
+                }
+            });
+        }
+
+        private void updateUi() {
+            uiHandler.post(new Runnable() {
+                public void run() {
+                    updateTexts();
                 }
             });
         }
@@ -535,23 +529,23 @@ public class PdfViewerActivity extends Activity {
             }
         }
 
-    }
-
-    private void updatePageNumber() {
-        Runnable updatePageNumber = new Runnable() {
-            @Override
-            public void run() {
-                String maxPage = ((mPdfFile == null) ? "0" : Integer.toString(mPdfFile.getNumPages()));
-                mGraphView.mBtPage.setText(mPage + "/" + maxPage);
+        protected void updateTexts() {
+            if (mPdfPage != null) {
+                if (mBtPage != null)
+                    mBtPage.setText(mPdfPage.getPageNumber() + "/" + mPdfFile.getNumPages());
+                if (mBtPage2 != null)
+                    mBtPage2.setText(mPdfPage.getPageNumber() + "/" + mPdfFile.getNumPages());
             }
-        };
-        uiHandler.post(updatePageNumber);
+        }
+
     }
 
     private void showPage(int page, float zoom) throws Exception {
-        pdfView.showPage(page, zoom);
-        updatePageNumber();
         try {
+
+            // free memory from previous page
+            mGraphView.setPageBitmap(null);
+            mGraphView.updateImage();
 
             // Only load the page if it's a different page (i.e. not just changing the zoom level)
             if (mPdfPage == null || mPdfPage.getPageNumber() != page) {
@@ -599,10 +593,6 @@ public class PdfViewerActivity extends Activity {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        if (mTmpFile != null) {
-            mTmpFile.delete();
-            mTmpFile = null;
-        }
         byteArray = null;
     }
 
