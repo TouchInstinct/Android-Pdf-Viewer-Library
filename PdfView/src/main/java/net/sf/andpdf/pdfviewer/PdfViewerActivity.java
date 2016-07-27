@@ -27,6 +27,7 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.sun.pdfview.PDFFile;
 import com.sun.pdfview.PDFImage;
@@ -62,16 +63,13 @@ public class PdfViewerActivity extends Activity {
 
     private static final String TAG = "PDFVIEWER";
 
-    public static final String EXTRA_PDFFILENAME = "net.sf.andpdf.extra.PDFFILENAME";
     public static final String EXTRA_SHOWIMAGES = "net.sf.andpdf.extra.SHOWIMAGES";
     public static final String EXTRA_ANTIALIAS = "net.sf.andpdf.extra.ANTIALIAS";
     public static final String EXTRA_USEFONTSUBSTITUTION = "net.sf.andpdf.extra.USEFONTSUBSTITUTION";
-    public static final String EXTRA_KEEPCACHES = "net.sf.andpdf.extra.KEEPCACHES";
 
     public static final boolean DEFAULTSHOWIMAGES = true;
     public static final boolean DEFAULTANTIALIAS = true;
     public static final boolean DEFAULTUSEFONTSUBSTITUTION = false;
-    public static final boolean DEFAULTKEEPCACHES = false;
 
     private final static int MENU_NEXT_PAGE = 1;
     private final static int MENU_PREV_PAGE = 2;
@@ -86,15 +84,11 @@ public class PdfViewerActivity extends Activity {
     private GraphView mOldGraphView;
     private GraphView mGraphView;
     private PDFFile mPdfFile;
-    private byte[] byteArray;
+    public static byte[] byteArray;
     private int mPage;
     private float mZoom;
     private File mTmpFile;
     private ProgressDialog progress;
-
-    /*private View navigationPanel;
-    private Handler closeNavigationHandler;
-    private Thread closeNavigationThread;*/
 
     private PDFPage mPdfPage;
 
@@ -392,10 +386,9 @@ public class PdfViewerActivity extends Activity {
     PdfView pdfView;
 
     private class GraphView extends FullScrollView {
-        private Bitmap mBi;
-        private ImageView mImageView;
-        private Button mBtPage;
-        private Button mBtPage2;
+        public Bitmap mBi;
+        public ImageView mImageView;
+        public Button mBtPage;
 
         ImageButton bZoomOut;
         ImageButton bZoomIn;
@@ -422,8 +415,6 @@ public class PdfViewerActivity extends Activity {
             pdfView = new PdfView(PdfViewerActivity.this);
 
             addNavButtons(vl);
-            // remember page button for updates
-            mBtPage2 = mBtPage;
 
             mImageView = new ImageView(context);
             setPageBitmap(null);
@@ -488,6 +479,7 @@ public class PdfViewerActivity extends Activity {
             bPrev.setOnClickListener(new OnClickListener() {
                 public void onClick(View v) {
                     prevPage();
+                    updatePageNumber();
                 }
             });
             hl.addView(bPrev);
@@ -495,11 +487,11 @@ public class PdfViewerActivity extends Activity {
             // page button
             mBtPage = new Button(context);
             mBtPage.setLayoutParams(lpChild1);
-            String maxPage = ((mPdfFile == null) ? "0" : Integer.toString(mPdfFile.getNumPages()));
-            mBtPage.setText(mPage + "/" + maxPage);
+
             mBtPage.setOnClickListener(new OnClickListener() {
                 public void onClick(View v) {
                     gotoPage();
+                    updatePageNumber();
                 }
             });
             hl.addView(mBtPage);
@@ -512,6 +504,7 @@ public class PdfViewerActivity extends Activity {
             bNext.setOnClickListener(new OnClickListener() {
                 public void onClick(View v) {
                     nextPage();
+                    updatePageNumber();
                 }
             });
             hl.addView(bNext);
@@ -541,10 +534,23 @@ public class PdfViewerActivity extends Activity {
                 mBi = bi;
             }
         }
+
+    }
+
+    private void updatePageNumber() {
+        Runnable updatePageNumber = new Runnable() {
+            @Override
+            public void run() {
+                String maxPage = ((mPdfFile == null) ? "0" : Integer.toString(mPdfFile.getNumPages()));
+                mGraphView.mBtPage.setText(mPage + "/" + maxPage);
+            }
+        };
+        uiHandler.post(updatePageNumber);
     }
 
     private void showPage(int page, float zoom) throws Exception {
         pdfView.showPage(page, zoom);
+        updatePageNumber();
         try {
 
             // Only load the page if it's a different page (i.e. not just changing the zoom level)
@@ -576,16 +582,18 @@ public class PdfViewerActivity extends Activity {
      * @throws IOException
      */
     public void openFile(final byte[] byteArray, String password) throws IOException {
-
-        // now memory-map a byte-buffer
-        ByteBuffer bb = ByteBuffer.NEW(byteArray);
-        // create a PDFFile from the data
-        if (password == null) {
-            mPdfFile = new PDFFile(bb);
+        if (byteArray != null) {
+            // now memory-map a byte-buffer
+            ByteBuffer bb = ByteBuffer.NEW(byteArray);
+            // create a PDFFile from the data
+            if (password == null) {
+                mPdfFile = new PDFFile(bb);
+            } else {
+                mPdfFile = new PDFFile(bb, new PDFPassword(password));
+            }
         } else {
-            mPdfFile = new PDFFile(bb, new PDFPassword(password));
+            Toast.makeText(this, "The error occurred", Toast.LENGTH_LONG).show();
         }
-
     }
 
     @Override
@@ -595,6 +603,7 @@ public class PdfViewerActivity extends Activity {
             mTmpFile.delete();
             mTmpFile = null;
         }
+        byteArray = null;
     }
 
     private int getPreviousPageImageResource() {
