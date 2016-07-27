@@ -10,9 +10,7 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.RectF;
-import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -44,12 +42,7 @@ import net.sf.andpdf.pdfviewer.gui.PdfView;
 import net.sf.andpdf.refs.HardReference;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.RandomAccessFile;
-import java.nio.channels.FileChannel;
 
 /**
  * U:\Android\android-sdk-windows-1.5_r1\tools\adb push u:\Android\simple_T.pdf /data/test.pdf
@@ -57,6 +50,8 @@ import java.nio.channels.FileChannel;
  * @author ferenc.hechler
  */
 public abstract class PdfViewerActivity extends Activity {
+
+  public static final String BUNDLE_KEY = "BUNDLE_KEY";
 
   private static final int STARTPAGE = 1;
   private static final float STARTZOOM = 1.0f;
@@ -90,8 +85,8 @@ public abstract class PdfViewerActivity extends Activity {
 
   private GraphView mOldGraphView;
   private GraphView mGraphView;
-  private String pdffilename;
   private PDFFile mPdfFile;
+  private byte[] byteArray;
   private int mPage;
   private float mZoom;
   private File mTmpFile;
@@ -131,24 +126,26 @@ public abstract class PdfViewerActivity extends Activity {
       mPdfPage = inst.mPdfPage;
       mTmpFile = inst.mTmpFile;
       mZoom = inst.mZoom;
-      pdffilename = inst.pdffilename;
       backgroundThread = inst.backgroundThread;
       // mGraphView.invalidate();
     }
     return true;
   }
 
-  public abstract String getFileName();
-
   /**
    * Called when the activity is first created.
    */
   @Override public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
-    pdffilename = getFileName();
     Log.i(TAG, "onCreate");
     uiHandler = new Handler();
     restoreInstance();
+      if (savedInstanceState != null) {
+          final byte[] byteArray = savedInstanceState.getByteArray(BUNDLE_KEY);
+          if (byteArray != null) {
+              this.byteArray=byteArray;
+          }
+      }
     if (mOldGraphView != null) {
       mGraphView = new GraphView(this);
       mGraphView.mBi = mOldGraphView.mBi;
@@ -174,16 +171,6 @@ public abstract class PdfViewerActivity extends Activity {
           getIntent().getBooleanExtra(PdfViewerActivity.EXTRA_KEEPCACHES, PdfViewerActivity.DEFAULTKEEPCACHES);
       HardReference.sKeepCaches = true;
 
-      if (intent != null && pdffilename == null) {
-        if ("android.intent.action.VIEW".equals(intent.getAction())) {
-          pdffilename = storeUriContentToFile(intent.getData());
-        } else {
-          pdffilename = getIntent().getStringExtra(PdfViewerActivity.EXTRA_PDFFILENAME);
-        }
-      }
-
-      if (pdffilename == null) pdffilename = "no file selected";
-
       mPage = STARTPAGE;
       mZoom = STARTZOOM;
 
@@ -193,7 +180,7 @@ public abstract class PdfViewerActivity extends Activity {
 
   private void setContent(String password) {
     try {
-      parsePDF(pdffilename, password);
+      openFile(byteArray, password);
       pdfView.setmPdfFile(mPdfFile);
       setContentView(mGraphView);
       startRenderThread(mPage, mZoom);
@@ -213,6 +200,8 @@ public abstract class PdfViewerActivity extends Activity {
           finish();
         }
       });
+    } catch (Exception ex){
+        Log.e(TAG, "an unexpected exception occurred");
     }
   }
 
@@ -741,27 +730,6 @@ public abstract class PdfViewerActivity extends Activity {
     //mGraphView.pageRenderMillis = stopTime-middleTime;
   }
 
-  private void parsePDF(String filename, String password) throws PDFAuthenticationFailureException {
-    //long startTime = System.currentTimeMillis();
-    try {
-      File f = new File(filename);
-      long len = f.length();
-      if (len == 0) {
-        //                mGraphView.showText("file '" + filename + "' not found");
-      } else {
-        //                mGraphView.showText("file '" + filename + "' has " + len + " bytes");
-        openFile(f, password);
-      }
-    } catch (PDFAuthenticationFailureException e) {
-      throw e;
-    } catch (Throwable e) {
-      e.printStackTrace();
-      //            mGraphView.showText("Exception: " + e.getMessage());
-    }
-    //long stopTime = System.currentTimeMillis();
-    //mGraphView.fileMillis = stopTime-startTime;
-  }
-
   /**
    * <p>Open a specific pdf file.  Creates a DocumentInfo from the file,
    * and opens that.</p>
@@ -772,67 +740,17 @@ public abstract class PdfViewerActivity extends Activity {
    * @param file the file to open
    * @throws IOException
    */
-  public void openFile(File file, String password) throws IOException {
-    // first open the file for random access
-    RandomAccessFile raf = new RandomAccessFile(file, "r");
-
-    // extract a file channel
-    FileChannel channel = raf.getChannel();
+  public void openFile(final byte[] byteArray, String password) throws IOException {
 
     // now memory-map a byte-buffer
-    ByteBuffer bb = ByteBuffer.NEW(channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size()));
+    ByteBuffer bb = ByteBuffer.NEW(byteArray);
     // create a PDFFile from the data
     if (password == null) {
       mPdfFile = new PDFFile(bb);
     } else {
       mPdfFile = new PDFFile(bb, new PDFPassword(password));
     }
-    //        mGraphView.showText("Anzahl Seiten:" + mPdfFile.getNumPages());
-  }
-    
-     
-    /*private byte[] readBytes(File srcFile) throws IOException {
-        long fileLength = srcFile.length();
-    	int len = (int)fileLength;
-    	byte[] result = new byte[len];
-    	FileInputStream fis = new FileInputStream(srcFile);
-    	int pos = 0;
-		int cnt = fis.read(result, pos, len-pos);
-    	while (cnt > 0) {
-    		pos += cnt;
-    		cnt = fis.read(result, pos, len-pos);
-    	}
-		return result;
-	}*/
 
-  private String storeUriContentToFile(Uri uri) {
-    String result = null;
-    try {
-      if (mTmpFile == null) {
-        File root = Environment.getExternalStorageDirectory();
-        if (root == null) throw new Exception("external storage dir not found");
-        mTmpFile = new File(root, "AndroidPdfViewer/AndroidPdfViewer_temp.pdf");
-        mTmpFile.getParentFile().mkdirs();
-        mTmpFile.delete();
-      } else {
-        mTmpFile.delete();
-      }
-      InputStream is = getContentResolver().openInputStream(uri);
-      OutputStream os = new FileOutputStream(mTmpFile);
-      byte[] buf = new byte[1024];
-      int cnt = is.read(buf);
-      while (cnt > 0) {
-        os.write(buf, 0, cnt);
-        cnt = is.read(buf);
-      }
-      os.close();
-      is.close();
-      result = mTmpFile.getCanonicalPath();
-      mTmpFile.deleteOnExit();
-    } catch (Exception e) {
-      Log.e(TAG, e.getMessage(), e);
-    }
-    return result;
   }
 
   @Override protected void onDestroy() {
