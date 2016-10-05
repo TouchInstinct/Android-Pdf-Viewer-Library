@@ -210,7 +210,7 @@ public class PdfViewerFragment extends Fragment {
             public void run() {
                 try {
                     if (mPdfFile != null) {
-                        showPage(page, zoom);
+                        showPage(page);
                     }
                 } catch (Exception e) {
                     Log.e(TAG, e.getMessage(), e);
@@ -264,10 +264,10 @@ public class PdfViewerFragment extends Fragment {
                 prevPage();
                 break;
             }
-            case MENU_GOTO_PAGE: {
-                gotoPage();
-                break;
-            }
+//            case MENU_GOTO_PAGE: {
+//                gotoPage();
+//                break;
+//            }
             case MENU_ZOOM_IN: {
                 zoomIn();
                 break;
@@ -594,7 +594,7 @@ public class PdfViewerFragment extends Fragment {
 
     }
 
-    private void showPage(int page, float zoom) {
+    private void showPage(int page) {
         try {
 
             // free memory from previous page
@@ -609,7 +609,7 @@ public class PdfViewerFragment extends Fragment {
             float width = mPdfPage.getWidth();
             float height = mPdfPage.getHeight();
             RectF clip = null;
-            Bitmap bi = mPdfPage.getImage((int) (width * zoom), (int) (height * zoom), clip, true, true);
+            Bitmap bi = mPdfPage.getImage((int) (width * (mGraphView.getWidth() / width)), (int) (height * (mGraphView.getHeight() / height)), clip, true, true);
             mGraphView.setPageBitmap(bi);
             mGraphView.updateImage();
         } catch (Throwable e) {
