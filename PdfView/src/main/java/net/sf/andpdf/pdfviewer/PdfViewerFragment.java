@@ -7,7 +7,6 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.graphics.Bitmap;
-import android.graphics.Color;
 import android.graphics.RectF;
 import android.os.Bundle;
 import android.os.Handler;
@@ -448,34 +447,30 @@ public class PdfViewerFragment extends Fragment {
         public GraphView(Context context) {
             super(context);
 
-//            LinearLayout.LayoutParams matchLp =
-//                    new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
+            // TODO: temporarily commented
+            //LinearLayout.LayoutParams lpWrap1 = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, 1);
+//            LinearLayout.LayoutParams lpWrap10 = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
+//            LinearLayout vl = new LinearLayout(context);
+//            vl.setLayoutParams(lpWrap10);
+//            vl.setOrientation(LinearLayout.VERTICAL);
 
-            LinearLayout.LayoutParams lpWrap1 = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, 1);
-            LinearLayout.LayoutParams lpWrap10 = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, 10);
-
-            LinearLayout vl = new LinearLayout(context);
-            vl.setLayoutParams(lpWrap10);
-            vl.setOrientation(LinearLayout.VERTICAL);
-
-            addNavButtons(vl);
+            // TODO: temporarily commented
+            //addNavButtons(vl);
             // remember page button for updates
             mBtPage2 = mBtPage;
 
             pdfView = new ImageView(context);
             setPageBitmap(null);
             updateImage();
-            pdfView.setLayoutParams(lpWrap1);
-            pdfView.setPadding(5, 5, 5, 5);
-            vl.addView(pdfView);
 
-            setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT, 100));
-            setBackgroundColor(Color.LTGRAY);
-            setHorizontalScrollBarEnabled(true);
-            setHorizontalFadingEdgeEnabled(true);
-            setVerticalScrollBarEnabled(true);
-            setVerticalFadingEdgeEnabled(true);
-            addView(vl);
+            // TODO: temporarily commented
+//            setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT, 100));
+//            setBackgroundColor(Color.LTGRAY);
+//            setHorizontalScrollBarEnabled(true);
+//            setHorizontalFadingEdgeEnabled(true);
+//            setVerticalScrollBarEnabled(true);
+//            setVerticalFadingEdgeEnabled(true);
+            addView(pdfView);
         }
 
         private void addNavButtons(ViewGroup vg) {
