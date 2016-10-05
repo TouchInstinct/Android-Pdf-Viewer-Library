@@ -7,7 +7,9 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.graphics.Bitmap;
-import android.graphics.RectF;
+import android.graphics.Canvas;
+import android.graphics.Matrix;
+import android.graphics.Paint;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.NonNull;
@@ -46,6 +48,8 @@ import net.sf.andpdf.refs.HardReference;
 
 import java.io.IOException;
 import java.util.Locale;
+
+import uk.co.senab.photoview.PhotoViewAttacher;
 
 import static android.content.Context.INPUT_METHOD_SERVICE;
 
@@ -111,7 +115,7 @@ public class PdfViewerFragment extends Fragment {
             mGraphView = new GraphView(getActivity());
             mGraphView.mBi = mOldGraphView.mBi;
             mOldGraphView = null;
-            mGraphView.pdfView.setImageBitmap(mGraphView.mBi);
+            mGraphView.pdfZoomedImageView.setImageBitmap(mGraphView.mBi);
             mGraphView.updateTexts();
             return mGraphView;
         } else {
@@ -437,7 +441,8 @@ public class PdfViewerFragment extends Fragment {
 
     private class GraphView extends FullScrollView {
         public Bitmap mBi;
-        public ImageView pdfView;
+        public ImageView pdfZoomedImageView;
+        public PhotoViewAttacher photoViewAttacher;
         public Button mBtPage;
         private Button mBtPage2;
 
@@ -459,7 +464,8 @@ public class PdfViewerFragment extends Fragment {
             // remember page button for updates
             mBtPage2 = mBtPage;
 
-            pdfView = new ImageView(context);
+            pdfZoomedImageView = new ImageView(context);
+            photoViewAttacher = new PhotoViewAttacher(pdfZoomedImageView);
             setPageBitmap(null);
             updateImage();
 
@@ -470,7 +476,7 @@ public class PdfViewerFragment extends Fragment {
 //            setHorizontalFadingEdgeEnabled(true);
 //            setVerticalScrollBarEnabled(true);
 //            setVerticalFadingEdgeEnabled(true);
-            addView(pdfView);
+            addView(pdfZoomedImageView);
         }
 
         private void addNavButtons(ViewGroup vg) {
@@ -559,7 +565,8 @@ public class PdfViewerFragment extends Fragment {
         private void updateImage() {
             uiHandler.post(new Runnable() {
                 public void run() {
-                    pdfView.setImageBitmap(mBi);
+                    pdfZoomedImageView.setImageBitmap(mBi);
+                    photoViewAttacher.update();
                 }
             });
         }
@@ -601,16 +608,34 @@ public class PdfViewerFragment extends Fragment {
                 mPdfPage = mPdfFile.getPage(page, true);
             }
 
-            float width = mPdfPage.getWidth();
-            float height = mPdfPage.getHeight();
-            RectF clip = null;
-            Bitmap bi = mPdfPage.getImage((int) (width * (mGraphView.getWidth() / width)), (int) (height * (mGraphView.getHeight() / height)), clip, true, true);
-            mGraphView.setPageBitmap(bi);
+            final Bitmap bitmap = mPdfPage.getImage(mGraphView.getWidth() * 2, mGraphView.getHeight() * 2, null, true, true);
+            final Bitmap bitmapWithoutQualityLose = getBitmapWithoutQualityLose(bitmap, mGraphView.getWidth(), mGraphView.getHeight());
+            mGraphView.setPageBitmap(bitmapWithoutQualityLose);
             mGraphView.updateImage();
         } catch (Throwable e) {
             Log.e(TAG, e.getMessage(), e);
         }
         hideProgressBar();
+    }
+
+    @NonNull
+    public Bitmap getBitmapWithoutQualityLose(@NonNull final Bitmap bitmap, int newWidth, int newHeight) {
+        final Bitmap scaledBitmap = Bitmap.createBitmap(newWidth, newHeight, Bitmap.Config.ARGB_8888);
+
+        float ratioX = newWidth / (float) bitmap.getWidth();
+        float ratioY = newHeight / (float) bitmap.getHeight();
+        float middleX = newWidth / 2.0f;
+        float middleY = newHeight / 2.0f;
+
+        final Matrix scaleMatrix = new Matrix();
+        scaleMatrix.setScale(ratioX, ratioY, middleX, middleY);
+
+        final Canvas canvas = new Canvas(scaledBitmap);
+        canvas.setMatrix(scaleMatrix);
+        canvas.drawBitmap(bitmap, middleX - bitmap.getWidth() / 2, middleY - bitmap.getHeight() / 2, new Paint(Paint.FILTER_BITMAP_FLAG));
+
+        return scaledBitmap;
+
     }
 
     private void hideProgressBar() {
@@ -648,6 +673,10 @@ public class PdfViewerFragment extends Fragment {
     public void onDestroy() {
         super.onDestroy();
         byteArray = null;
+        if (mGraphView != null) {
+            mGraphView.mBi = null;
+            mGraphView.photoViewAttacher.cleanup();
+        }
     }
 
     private int getPreviousPageImageResource() {
