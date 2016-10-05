@@ -16,6 +16,7 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -120,12 +121,9 @@ public class PdfViewerFragment extends Fragment {
             return mGraphView;
         } else {
             mGraphView = new GraphView(getActivity());
-            if (savedInstanceState != null) {
-                PDFImage.sShowImages = savedInstanceState.getBoolean(PdfViewerFragment.EXTRA_SHOWIMAGES, PdfViewerFragment.DEFAULTSHOWIMAGES);
-                PDFPaint.s_doAntiAlias = savedInstanceState.getBoolean(PdfViewerFragment.EXTRA_ANTIALIAS, PdfViewerFragment.DEFAULTANTIALIAS);
-                PDFFont.sUseFontSubstitution = savedInstanceState.getBoolean(PdfViewerFragment.EXTRA_USEFONTSUBSTITUTION,
-                        PdfViewerFragment.DEFAULTUSEFONTSUBSTITUTION);
-            }
+            PDFImage.sShowImages = PdfViewerFragment.DEFAULTSHOWIMAGES;
+            PDFPaint.s_doAntiAlias = PdfViewerFragment.DEFAULTANTIALIAS;
+            PDFFont.sUseFontSubstitution = PdfViewerFragment.DEFAULTUSEFONTSUBSTITUTION;
             HardReference.sKeepCaches = true;
 
             mPage = STARTPAGE;
@@ -598,7 +596,6 @@ public class PdfViewerFragment extends Fragment {
 
     private void showPage(int page) {
         try {
-
             // free memory from previous page
             mGraphView.setPageBitmap(null);
             mGraphView.updateImage();
@@ -608,14 +605,44 @@ public class PdfViewerFragment extends Fragment {
                 mPdfPage = mPdfFile.getPage(page, true);
             }
 
-            final Bitmap bitmap = mPdfPage.getImage(mGraphView.getWidth() * 2, mGraphView.getHeight() * 2, null, true, true);
-            final Bitmap bitmapWithoutQualityLose = getBitmapWithoutQualityLose(bitmap, mGraphView.getWidth(), mGraphView.getHeight());
-            mGraphView.setPageBitmap(bitmapWithoutQualityLose);
+            final DisplayMetrics displayMetrics = UiUtils.OfMetrics.getDisplayMetrics(getActivity());
+
+            final int density = (int) displayMetrics.density;
+
+            float width = mPdfPage.getWidth() * density;
+            float height = mPdfPage.getHeight() * density;
+
+            int maxWidthToPopulate = mGraphView.getWidth();
+            int maxHeightToPopulate = mGraphView.getHeight();
+
+
+            int calculatedWidth;
+            int calculatedHeight;
+            if (width < maxWidthToPopulate && height < maxHeightToPopulate) {
+                calculatedWidth = (int) width;
+                calculatedHeight = (int) height;
+            } else {
+                final float widthRatio = width / maxWidthToPopulate;
+                final float heightRatio = height / maxHeightToPopulate;
+                if (widthRatio > heightRatio) {
+                    calculatedHeight = (int) (height / widthRatio);
+                    calculatedWidth = (int) (width / widthRatio);
+                } else {
+                    calculatedHeight = (int) (height / heightRatio);
+                    calculatedWidth = (int) (width / heightRatio);
+                }
+            }
+
+            Bitmap bitmap = mPdfPage.getImage(calculatedWidth, calculatedHeight, null, true, true);
+            bitmap = getBitmapWithoutQualityLose(bitmap, maxWidthToPopulate, maxHeightToPopulate);
+            mGraphView.setPageBitmap(bitmap);
             mGraphView.updateImage();
         } catch (Throwable e) {
             Log.e(TAG, e.getMessage(), e);
         }
+
         hideProgressBar();
+
     }
 
     @NonNull
