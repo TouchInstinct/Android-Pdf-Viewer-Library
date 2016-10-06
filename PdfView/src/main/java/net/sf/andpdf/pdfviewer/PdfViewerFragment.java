@@ -17,9 +17,6 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
@@ -59,25 +56,12 @@ import static android.content.Context.INPUT_METHOD_SERVICE;
 public class PdfViewerFragment extends Fragment {
 
     private static final int STARTPAGE = 1;
-    private static final float STARTZOOM = 1.0f;
-
-    private static final float MIN_ZOOM = 0.25f;
-    private static final float MAX_ZOOM = 3.0f;
-    private static final float ZOOM_INCREMENT = 1.5f;
 
     private static final String TAG = "PDFVIEWER";
 
     public static final boolean DEFAULTSHOWIMAGES = true;
     public static final boolean DEFAULTANTIALIAS = true;
     public static final boolean DEFAULTUSEFONTSUBSTITUTION = false;
-
-    private final static int MENU_NEXT_PAGE = 1;
-    private final static int MENU_PREV_PAGE = 2;
-    private final static int MENU_GOTO_PAGE = 3;
-    private final static int MENU_ZOOM_IN = 4;
-    private final static int MENU_ZOOM_OUT = 5;
-    private final static int MENU_BACK = 6;
-    private final static int MENU_CLEANUP = 7;
 
     public static final String DIALOG_FRAGMENT_TAG_MARK = "DIALOG_FRAGMENT";
 
@@ -86,7 +70,6 @@ public class PdfViewerFragment extends Fragment {
     private PDFFile mPdfFile;
     public static byte[] byteArray;
     private int mPage;
-    private float mZoom;
     private ProgressDialog progress;
 
     private PDFPage mPdfPage;
@@ -104,6 +87,8 @@ public class PdfViewerFragment extends Fragment {
         uiHandler = new Handler();
         restoreInstance();
 
+        setupActionBar();
+
         progress = ProgressDialog.show(getActivity(), "Loading", "Loading PDF Page", true, true);
         if (mOldGraphView != null) {
             mGraphView = new GraphView(getActivity());
@@ -120,10 +105,17 @@ public class PdfViewerFragment extends Fragment {
             HardReference.sKeepCaches = true;
 
             mPage = STARTPAGE;
-            mZoom = STARTZOOM;
 
-            return setContent(password);
+            final LinearLayout linearLayout = new LinearLayout(getActivity());
+            linearLayout.setOrientation(LinearLayout.VERTICAL);
+            linearLayout.addView(LayoutInflater.from(getActivity()).inflate(R.layout.pfd_toolbar, null));
+            linearLayout.addView(setContent(password));
+            return linearLayout;
         }
+    }
+
+    private void setupActionBar() {
+
     }
 
     @Override
@@ -192,7 +184,6 @@ public class PdfViewerFragment extends Fragment {
             mPage = inst.mPage;
             mPdfFile = inst.mPdfFile;
             mPdfPage = inst.mPdfPage;
-            mZoom = inst.mZoom;
             backgroundThread = inst.backgroundThread;
         }
         return true;
@@ -227,99 +218,6 @@ public class PdfViewerFragment extends Fragment {
                 updateImageStatus();
             }
         }, 1000);
-    }
-
-
-    @Override
-    public void onCreateOptionsMenu(final Menu menu, final MenuInflater inflater) {
-        super.onCreateOptionsMenu(menu, inflater);
-        menu.add(Menu.NONE, MENU_PREV_PAGE, Menu.NONE, "Previous Page").setIcon(getPreviousPageImageResource());
-        menu.add(Menu.NONE, MENU_NEXT_PAGE, Menu.NONE, "Next Page").setIcon(getNextPageImageResource());
-        menu.add(Menu.NONE, MENU_GOTO_PAGE, Menu.NONE, "Goto Page");
-        menu.add(Menu.NONE, MENU_ZOOM_OUT, Menu.NONE, "Zoom Out").setIcon(getZoomOutImageResource());
-        menu.add(Menu.NONE, MENU_ZOOM_IN, Menu.NONE, "Zoom In").setIcon(getZoomInImageResource());
-        if (HardReference.sKeepCaches) {
-            menu.add(Menu.NONE, MENU_CLEANUP, Menu.NONE, "Clear Caches");
-        }
-    }
-
-    /**
-     * Called when a menu item is selected.
-     */
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        super.onOptionsItemSelected(item);
-        switch (item.getItemId()) {
-            case MENU_NEXT_PAGE: {
-                nextPage();
-                break;
-            }
-            case MENU_PREV_PAGE: {
-                prevPage();
-                break;
-            }
-//            case MENU_GOTO_PAGE: {
-//                gotoPage();
-//                break;
-//            }
-            case MENU_ZOOM_IN: {
-                zoomIn();
-                break;
-            }
-            case MENU_ZOOM_OUT: {
-                zoomOut();
-                break;
-            }
-            case MENU_BACK: {
-                getFragmentManager().popBackStack();
-                break;
-            }
-            case MENU_CLEANUP: {
-                HardReference.cleanup();
-                break;
-            }
-        }
-        return true;
-    }
-
-    private void zoomIn() {
-        if (mPdfFile != null) {
-            if (mZoom < MAX_ZOOM) {
-                mZoom *= ZOOM_INCREMENT;
-                if (mZoom > MAX_ZOOM) mZoom = MAX_ZOOM;
-
-                if (mZoom >= MAX_ZOOM) {
-                    Log.d(TAG, "Disabling zoom in button");
-                    mGraphView.bZoomIn.setEnabled(false);
-                } else {
-                    mGraphView.bZoomIn.setEnabled(true);
-                }
-
-                mGraphView.bZoomOut.setEnabled(true);
-
-                startRenderThread(mPage);
-            }
-        }
-    }
-
-    private void zoomOut() {
-        if (mPdfFile != null) {
-            if (mZoom > MIN_ZOOM) {
-                mZoom /= ZOOM_INCREMENT;
-                if (mZoom < MIN_ZOOM) mZoom = MIN_ZOOM;
-
-                if (mZoom <= MIN_ZOOM) {
-                    Log.d(TAG, "Disabling zoom out button");
-                    mGraphView.bZoomOut.setEnabled(false);
-                } else {
-                    mGraphView.bZoomOut.setEnabled(true);
-                }
-
-                mGraphView.bZoomIn.setEnabled(true);
-
-                startRenderThread(mPage);
-            }
-        }
     }
 
     private void nextPage() {
@@ -438,23 +336,12 @@ public class PdfViewerFragment extends Fragment {
 
         public GraphView(Context context) {
             super(context);
-
-            // TODO: temporarily commented
-            //LinearLayout.LayoutParams lpWrap1 = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, 1);
-//            LinearLayout.LayoutParams lpWrap10 = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
-//            LinearLayout vl = new LinearLayout(context);
-//            vl.setLayoutParams(lpWrap10);
-//            vl.setOrientation(LinearLayout.VERTICAL);
-
-            // TODO: temporarily commented
-            //addNavButtons(vl);
-            // remember page button for updates
             mBtPage2 = mBtPage;
 
-            final FrameLayout.LayoutParams linearLayout = new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
-            linearLayout.gravity = Gravity.CENTER;
+            final FrameLayout.LayoutParams frameLayout = new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
+            frameLayout.gravity = Gravity.CENTER;
             pdfZoomedImageView = new ImageView(context);
-            pdfZoomedImageView.setLayoutParams(linearLayout);
+            pdfZoomedImageView.setLayoutParams(frameLayout);
             pdfZoomedImageView.setBackgroundColor(getContext().getResources().getColor(R.color.zoomed_image_view_background));
 
             photoViewAttacher = new PhotoViewAttacher(pdfZoomedImageView);
@@ -473,101 +360,12 @@ public class PdfViewerFragment extends Fragment {
 
             });
             setPageBitmap(null);
-            updateImage();
+            //updateImage();
 
-            // TODO: temporarily commented
-//            setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT, 100));
-//            setBackgroundColor(Color.LTGRAY);
-//            setHorizontalScrollBarEnabled(true);
-//            setHorizontalFadingEdgeEnabled(true);
-//            setVerticalScrollBarEnabled(true);
-//            setVerticalFadingEdgeEnabled(true);
 
+            final LinearLayout.LayoutParams linearLayout = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1);
+            setLayoutParams(linearLayout);
             addView(pdfZoomedImageView);
-
-        }
-
-        private void addNavButtons(ViewGroup vg) {
-
-            LinearLayout.LayoutParams lpChild1 = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, 1);
-            LinearLayout.LayoutParams lpWrap10 = new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, 10);
-
-            Context context = vg.getContext();
-            LinearLayout hl = new LinearLayout(context);
-            hl.setLayoutParams(lpWrap10);
-            hl.setOrientation(LinearLayout.HORIZONTAL);
-
-            // zoom out button
-            bZoomOut = new ImageButton(context);
-            bZoomOut.setBackgroundDrawable(null);
-            bZoomOut.setLayoutParams(lpChild1);
-            bZoomOut.setImageResource(getZoomOutImageResource());
-            bZoomOut.setOnClickListener(new OnClickListener() {
-                public void onClick(View v) {
-                    zoomOut();
-                }
-            });
-            hl.addView(bZoomOut);
-
-            // zoom in button
-            bZoomIn = new ImageButton(context);
-            bZoomIn.setBackgroundDrawable(null);
-            bZoomIn.setLayoutParams(lpChild1);
-            bZoomIn.setImageResource(getZoomInImageResource());
-            bZoomIn.setOnClickListener(new OnClickListener() {
-                public void onClick(View v) {
-                    zoomIn();
-                }
-            });
-            hl.addView(bZoomIn);
-
-            // prev button
-            ImageButton bPrev = new ImageButton(context);
-            bPrev.setBackgroundDrawable(null);
-            bPrev.setLayoutParams(lpChild1);
-            //bPrev.setText("<");
-            //bPrev.setWidth(40);
-            bPrev.setImageResource(getPreviousPageImageResource());
-            bPrev.setOnClickListener(new OnClickListener() {
-                public void onClick(View v) {
-                    prevPage();
-                }
-            });
-            hl.addView(bPrev);
-
-            // page button
-            mBtPage = new Button(context);
-            mBtPage.setLayoutParams(lpChild1);
-
-            mBtPage.setOnClickListener(new OnClickListener() {
-                public void onClick(View v) {
-                    gotoPage();
-                }
-            });
-            hl.addView(mBtPage);
-
-            // next button
-            ImageButton bNext = new ImageButton(context);
-            bNext.setBackgroundDrawable(null);
-            bNext.setLayoutParams(lpChild1);
-            bNext.setImageResource(getNextPageImageResource());
-            bNext.setOnClickListener(new OnClickListener() {
-                public void onClick(View v) {
-                    nextPage();
-                }
-            });
-            hl.addView(bNext);
-
-            vg.addView(hl);
-
-            addSpace(vg, 6, 6);
-        }
-
-        private void addSpace(ViewGroup vg, int width, int height) {
-            TextView tvSpacer = new TextView(vg.getContext());
-            tvSpacer.setLayoutParams(new LinearLayout.LayoutParams(width, height, 1));
-            tvSpacer.setText(null);
-            vg.addView(tvSpacer);
         }
 
         private void updateImage() {
@@ -707,22 +505,6 @@ public class PdfViewerFragment extends Fragment {
             mGraphView.mBi = null;
             mGraphView.photoViewAttacher.cleanup();
         }
-    }
-
-    private int getPreviousPageImageResource() {
-        return R.drawable.left_arrow;
-    }
-
-    private int getNextPageImageResource() {
-        return R.drawable.right_arrow;
-    }
-
-    private int getZoomInImageResource() {
-        return R.drawable.zoom_in;
-    }
-
-    private int getZoomOutImageResource() {
-        return R.drawable.zoom_out;
     }
 
     private int getPdfPasswordEditField() {
