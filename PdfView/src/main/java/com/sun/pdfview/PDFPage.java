@@ -216,7 +216,7 @@ public class PDFPage {
                 info.bgColor = Color.WHITE;
             }
 
-            image = Bitmap.createBitmap(width, height, Config.ARGB_8888);
+            image = Bitmap.createBitmap(width, height, Config.RGB_565);
             renderer = new PDFRenderer(this, info, image);
 
 //            if (cache != null) {

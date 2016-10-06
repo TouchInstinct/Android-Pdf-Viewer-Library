@@ -134,7 +134,7 @@ public class PdfViewerFragment extends Fragment {
             return;
         }
         if (!passwordNeeded) {
-            startRenderThread(mPage, mZoom);
+            startRenderThread(mPage);
         } else {
             hideProgressBar();
             final EditText etPW = (EditText) view.findViewById(getPdfPasswordEditField());
@@ -198,7 +198,7 @@ public class PdfViewerFragment extends Fragment {
         return true;
     }
 
-    private synchronized void startRenderThread(final int page, final float zoom) {
+    private synchronized void startRenderThread(final int page) {
         if (backgroundThread != null) return;
         backgroundThread = new Thread(new Runnable() {
             public void run() {
@@ -297,7 +297,7 @@ public class PdfViewerFragment extends Fragment {
 
                 mGraphView.bZoomOut.setEnabled(true);
 
-                startRenderThread(mPage, mZoom);
+                startRenderThread(mPage);
             }
         }
     }
@@ -317,7 +317,7 @@ public class PdfViewerFragment extends Fragment {
 
                 mGraphView.bZoomIn.setEnabled(true);
 
-                startRenderThread(mPage, mZoom);
+                startRenderThread(mPage);
             }
         }
     }
@@ -326,10 +326,8 @@ public class PdfViewerFragment extends Fragment {
         if (mPdfFile != null) {
             if (mPage < mPdfFile.getNumPages()) {
                 mPage += 1;
-                mGraphView.bZoomOut.setEnabled(true);
-                mGraphView.bZoomIn.setEnabled(true);
                 progress = ProgressDialog.show(getActivity(), "Loading", "Loading PDF Page " + mPage, true, true);
-                startRenderThread(mPage, mZoom);
+                startRenderThread(mPage);
             }
         }
     }
@@ -338,10 +336,8 @@ public class PdfViewerFragment extends Fragment {
         if (mPdfFile != null) {
             if (mPage > 1) {
                 mPage -= 1;
-                mGraphView.bZoomOut.setEnabled(true);
-                mGraphView.bZoomIn.setEnabled(true);
                 progress = ProgressDialog.show(getActivity(), "Loading", "Loading PDF Page " + mPage, true, true);
-                startRenderThread(mPage, mZoom);
+                startRenderThread(mPage);
             }
         }
     }
@@ -403,7 +399,7 @@ public class PdfViewerFragment extends Fragment {
                                 mGraphView.bZoomOut.setEnabled(true);
                                 mGraphView.bZoomIn.setEnabled(true);
                                 progress = ProgressDialog.show(getActivity(), "Loading", "Loading PDF Page " + mPage, true, true);
-                                startRenderThread(mPage, mZoom);
+                                startRenderThread(mPage);
                             }
                         }
                     })
@@ -462,6 +458,20 @@ public class PdfViewerFragment extends Fragment {
             pdfZoomedImageView.setBackgroundColor(getContext().getResources().getColor(R.color.zoomed_image_view_background));
 
             photoViewAttacher = new PhotoViewAttacher(pdfZoomedImageView);
+
+            photoViewAttacher.setOnSingleFlingListener(new OnSwipeTouchListener() {
+
+                @Override
+                public void onSwipeLeft() {
+                    nextPage();
+                }
+
+                @Override
+                public void onSwipeRight() {
+                    prevPage();
+                }
+
+            });
             setPageBitmap(null);
             updateImage();
 
