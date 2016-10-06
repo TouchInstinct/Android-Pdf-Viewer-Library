@@ -16,8 +16,8 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
-import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -29,6 +29,7 @@ import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -69,10 +70,6 @@ public class PdfViewerFragment extends Fragment {
     private static final float ZOOM_INCREMENT = 1.5f;
 
     private static final String TAG = "PDFVIEWER";
-
-    public static final String EXTRA_SHOWIMAGES = "net.sf.andpdf.extra.SHOWIMAGES";
-    public static final String EXTRA_ANTIALIAS = "net.sf.andpdf.extra.ANTIALIAS";
-    public static final String EXTRA_USEFONTSUBSTITUTION = "net.sf.andpdf.extra.USEFONTSUBSTITUTION";
 
     public static final boolean DEFAULTSHOWIMAGES = true;
     public static final boolean DEFAULTANTIALIAS = true;
@@ -462,7 +459,11 @@ public class PdfViewerFragment extends Fragment {
             // remember page button for updates
             mBtPage2 = mBtPage;
 
+            final FrameLayout.LayoutParams linearLayout = new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
+            linearLayout.gravity = Gravity.CENTER;
             pdfZoomedImageView = new ImageView(context);
+            pdfZoomedImageView.setLayoutParams(linearLayout);
+
             photoViewAttacher = new PhotoViewAttacher(pdfZoomedImageView);
             setPageBitmap(null);
             updateImage();
@@ -474,7 +475,9 @@ public class PdfViewerFragment extends Fragment {
 //            setHorizontalFadingEdgeEnabled(true);
 //            setVerticalScrollBarEnabled(true);
 //            setVerticalFadingEdgeEnabled(true);
+
             addView(pdfZoomedImageView);
+
         }
 
         private void addNavButtons(ViewGroup vg) {
@@ -594,6 +597,7 @@ public class PdfViewerFragment extends Fragment {
 
     }
 
+    // TODO: refactor
     private void showPage(int page) {
         try {
             // free memory from previous page
@@ -605,12 +609,10 @@ public class PdfViewerFragment extends Fragment {
                 mPdfPage = mPdfFile.getPage(page, true);
             }
 
-            final DisplayMetrics displayMetrics = UiUtils.OfMetrics.getDisplayMetrics(getActivity());
+            final int scale = 3;
 
-            final int density = (int) displayMetrics.density;
-
-            float width = mPdfPage.getWidth() * density;
-            float height = mPdfPage.getHeight() * density;
+            float width = mPdfPage.getWidth() * scale;
+            float height = mPdfPage.getHeight() * scale;
 
             int maxWidthToPopulate = mGraphView.getWidth();
             int maxHeightToPopulate = mGraphView.getHeight();
@@ -618,23 +620,38 @@ public class PdfViewerFragment extends Fragment {
 
             int calculatedWidth;
             int calculatedHeight;
+            final float widthRatio = width / maxWidthToPopulate;
+            final float heightRatio = height / maxHeightToPopulate;
             if (width < maxWidthToPopulate && height < maxHeightToPopulate) {
-                calculatedWidth = (int) width;
-                calculatedHeight = (int) height;
-            } else {
-                final float widthRatio = width / maxWidthToPopulate;
-                final float heightRatio = height / maxHeightToPopulate;
                 if (widthRatio > heightRatio) {
-                    calculatedHeight = (int) (height / widthRatio);
                     calculatedWidth = (int) (width / widthRatio);
+                    calculatedHeight = (int) (height / widthRatio);
                 } else {
-                    calculatedHeight = (int) (height / heightRatio);
                     calculatedWidth = (int) (width / heightRatio);
+                    calculatedHeight = (int) (height / heightRatio);
+                }
+            } else {
+                if (widthRatio > 1 && heightRatio > 1) {
+                    if (widthRatio > heightRatio) {
+                        calculatedHeight = (int) (height / widthRatio);
+                        calculatedWidth = (int) (width / widthRatio);
+                    } else {
+                        calculatedHeight = (int) (height / heightRatio);
+                        calculatedWidth = (int) (width / heightRatio);
+                    }
+                } else {
+                    if (widthRatio > heightRatio) {
+                        calculatedHeight = (int) (height / widthRatio);
+                        calculatedWidth = (int) (width / widthRatio);
+                    } else {
+                        calculatedHeight = (int) (height / heightRatio);
+                        calculatedWidth = (int) (width / heightRatio);
+                    }
                 }
             }
 
             Bitmap bitmap = mPdfPage.getImage(calculatedWidth, calculatedHeight, null, true, true);
-            bitmap = getBitmapWithoutQualityLose(bitmap, maxWidthToPopulate, maxHeightToPopulate);
+            //bitmap = getBitmapWithoutQualityLose(bitmap, maxWidthToPopulate, maxHeightToPopulate);
             mGraphView.setPageBitmap(bitmap);
             mGraphView.updateImage();
         } catch (Throwable e) {
