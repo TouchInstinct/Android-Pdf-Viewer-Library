@@ -7,9 +7,6 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Matrix;
-import android.graphics.Paint;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.NonNull;
@@ -45,7 +42,6 @@ import com.sun.pdfview.decrypt.PDFPassword;
 import com.sun.pdfview.font.PDFFont;
 
 import net.sf.andpdf.nio.ByteBuffer;
-import net.sf.andpdf.pdfviewer.gui.FullScrollView;
 import net.sf.andpdf.refs.HardReference;
 
 import java.io.IOException;
@@ -434,7 +430,7 @@ public class PdfViewerFragment extends Fragment {
         dialogFragment.show(getFragmentManager(), dialogFragment.getClass().getName() + ";" + DIALOG_FRAGMENT_TAG_MARK);
     }
 
-    private class GraphView extends FullScrollView {
+    private class GraphView extends FrameLayout {
         public Bitmap mBi;
         public ImageView pdfZoomedImageView;
         public PhotoViewAttacher photoViewAttacher;
@@ -463,6 +459,7 @@ public class PdfViewerFragment extends Fragment {
             linearLayout.gravity = Gravity.CENTER;
             pdfZoomedImageView = new ImageView(context);
             pdfZoomedImageView.setLayoutParams(linearLayout);
+            pdfZoomedImageView.setBackgroundColor(getContext().getResources().getColor(R.color.zoomed_image_view_background));
 
             photoViewAttacher = new PhotoViewAttacher(pdfZoomedImageView);
             setPageBitmap(null);
@@ -650,8 +647,7 @@ public class PdfViewerFragment extends Fragment {
                 }
             }
 
-            Bitmap bitmap = mPdfPage.getImage(calculatedWidth, calculatedHeight, null, true, true);
-            //bitmap = getBitmapWithoutQualityLose(bitmap, maxWidthToPopulate, maxHeightToPopulate);
+            final Bitmap bitmap = mPdfPage.getImage(calculatedWidth, calculatedHeight, null, true, true);
             mGraphView.setPageBitmap(bitmap);
             mGraphView.updateImage();
         } catch (Throwable e) {
@@ -659,26 +655,6 @@ public class PdfViewerFragment extends Fragment {
         }
 
         hideProgressBar();
-
-    }
-
-    @NonNull
-    public Bitmap getBitmapWithoutQualityLose(@NonNull final Bitmap bitmap, int newWidth, int newHeight) {
-        final Bitmap scaledBitmap = Bitmap.createBitmap(newWidth, newHeight, Bitmap.Config.ARGB_8888);
-
-        float ratioX = newWidth / (float) bitmap.getWidth();
-        float ratioY = newHeight / (float) bitmap.getHeight();
-        float middleX = newWidth / 2.0f;
-        float middleY = newHeight / 2.0f;
-
-        final Matrix scaleMatrix = new Matrix();
-        scaleMatrix.setScale(ratioX, ratioY, middleX, middleY);
-
-        final Canvas canvas = new Canvas(scaledBitmap);
-        canvas.setMatrix(scaleMatrix);
-        canvas.drawBitmap(bitmap, middleX - bitmap.getWidth() / 2, middleY - bitmap.getHeight() / 2, new Paint(Paint.FILTER_BITMAP_FLAG));
-
-        return scaledBitmap;
 
     }
 
