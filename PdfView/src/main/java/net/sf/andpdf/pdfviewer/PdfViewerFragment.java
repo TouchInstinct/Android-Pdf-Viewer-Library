@@ -13,6 +13,8 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
+import android.support.v7.app.ActionBar;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -65,12 +67,12 @@ public class PdfViewerFragment extends Fragment {
 
     public static final String DIALOG_FRAGMENT_TAG_MARK = "DIALOG_FRAGMENT";
 
-    private GraphView mOldGraphView;
     private GraphView mGraphView;
     private PDFFile mPdfFile;
     public static byte[] byteArray;
     private int mPage;
     private ProgressDialog progress;
+    private TextView pageNumbersView;
 
     private PDFPage mPdfPage;
 
@@ -85,37 +87,39 @@ public class PdfViewerFragment extends Fragment {
     public View onCreateView(final LayoutInflater inflater, @Nullable final ViewGroup container, @Nullable final Bundle savedInstanceState) {
         Log.i(TAG, "onCreate");
         uiHandler = new Handler();
-        restoreInstance();
 
-        setupActionBar();
+        hideActionBar();
 
         progress = ProgressDialog.show(getActivity(), "Loading", "Loading PDF Page", true, true);
-        if (mOldGraphView != null) {
-            mGraphView = new GraphView(getActivity());
-            mGraphView.mBi = mOldGraphView.mBi;
-            mOldGraphView = null;
-            mGraphView.pdfZoomedImageView.setImageBitmap(mGraphView.mBi);
-            mGraphView.updateTexts();
-            return mGraphView;
-        } else {
-            mGraphView = new GraphView(getActivity());
-            PDFImage.sShowImages = PdfViewerFragment.DEFAULTSHOWIMAGES;
-            PDFPaint.s_doAntiAlias = PdfViewerFragment.DEFAULTANTIALIAS;
-            PDFFont.sUseFontSubstitution = PdfViewerFragment.DEFAULTUSEFONTSUBSTITUTION;
-            HardReference.sKeepCaches = true;
 
-            mPage = STARTPAGE;
+        mGraphView = new GraphView(getActivity());
+        PDFImage.sShowImages = PdfViewerFragment.DEFAULTSHOWIMAGES;
+        PDFPaint.s_doAntiAlias = PdfViewerFragment.DEFAULTANTIALIAS;
+        PDFFont.sUseFontSubstitution = PdfViewerFragment.DEFAULTUSEFONTSUBSTITUTION;
+        HardReference.sKeepCaches = true;
 
-            final LinearLayout linearLayout = new LinearLayout(getActivity());
-            linearLayout.setOrientation(LinearLayout.VERTICAL);
-            linearLayout.addView(LayoutInflater.from(getActivity()).inflate(R.layout.pfd_toolbar, null));
-            linearLayout.addView(setContent(password));
-            return linearLayout;
-        }
+        mPage = STARTPAGE;
+
+        final LinearLayout linearLayout = new LinearLayout(getActivity());
+        linearLayout.setOrientation(LinearLayout.VERTICAL);
+        final View view = LayoutInflater.from(getActivity()).inflate(R.layout.pfd_toolbar, null);
+        view.findViewById(R.id.pdf_toolbar_close_image).setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(final View v) {
+                getFragmentManager().popBackStack();
+            }
+        });
+        pageNumbersView = (TextView) view.findViewById(R.id.pdf_toolbar_page_numbers_text_view);
+        linearLayout.addView(view);
+        linearLayout.addView(setContent(password));
+        return linearLayout;
     }
 
-    private void setupActionBar() {
-
+    private void hideActionBar() {
+        final ActionBar actionBar = ((AppCompatActivity) getActivity()).getSupportActionBar();
+        if (actionBar != null) {
+            actionBar.hide();
+        }
     }
 
     @Override
@@ -167,28 +171,6 @@ public class PdfViewerFragment extends Fragment {
         return null;
     }
 
-    /**
-     * restore member variables from previously saved instance
-     *
-     * @return true if instance to restore from was found
-     * @see
-     */
-    private boolean restoreInstance() {
-        mOldGraphView = null;
-        Log.e(TAG, "restoreInstance");
-        if (getActivity().getLastNonConfigurationInstance() == null) return false;
-        PdfViewerFragment inst = (PdfViewerFragment) getActivity().getLastNonConfigurationInstance();
-        if (inst != this) {
-            Log.e(TAG, "restoring Instance");
-            mOldGraphView = inst.mGraphView;
-            mPage = inst.mPage;
-            mPdfFile = inst.mPdfFile;
-            mPdfPage = inst.mPdfPage;
-            backgroundThread = inst.backgroundThread;
-        }
-        return true;
-    }
-
     private synchronized void startRenderThread(final int page) {
         if (backgroundThread != null) return;
         backgroundThread = new Thread(new Runnable() {
@@ -209,10 +191,8 @@ public class PdfViewerFragment extends Fragment {
 
     private void updateImageStatus() {
         if (backgroundThread == null) {
-            mGraphView.updateUi();
             return;
         }
-        mGraphView.updateUi();
         mGraphView.postDelayed(new Runnable() {
             public void run() {
                 updateImageStatus();
@@ -224,6 +204,7 @@ public class PdfViewerFragment extends Fragment {
         if (mPdfFile != null) {
             if (mPage < mPdfFile.getNumPages()) {
                 mPage += 1;
+                updatePageNumbersView();
                 progress = ProgressDialog.show(getActivity(), "Loading", "Loading PDF Page " + mPage, true, true);
                 startRenderThread(mPage);
             }
@@ -234,8 +215,19 @@ public class PdfViewerFragment extends Fragment {
         if (mPdfFile != null) {
             if (mPage > 1) {
                 mPage -= 1;
+                updatePageNumbersView();
                 progress = ProgressDialog.show(getActivity(), "Loading", "Loading PDF Page " + mPage, true, true);
                 startRenderThread(mPage);
+            }
+        }
+    }
+
+    private void updatePageNumbersView() {
+        if (mPdfPage != null) {
+            if (mPdfPage.getPageNumber() == mPdfFile.getNumPages() && mPdfPage.getPageNumber() == 1) {
+                pageNumbersView.setVisibility(View.GONE);
+            } else {
+                pageNumbersView.setText(mPdfPage.getPageNumber() + "/" + mPdfFile.getNumPages());
             }
         }
     }
@@ -328,15 +320,12 @@ public class PdfViewerFragment extends Fragment {
         public Bitmap mBi;
         public ImageView pdfZoomedImageView;
         public PhotoViewAttacher photoViewAttacher;
-        public Button mBtPage;
-        private Button mBtPage2;
 
         ImageButton bZoomOut;
         ImageButton bZoomIn;
 
         public GraphView(Context context) {
             super(context);
-            mBtPage2 = mBtPage;
 
             final FrameLayout.LayoutParams frameLayout = new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
             frameLayout.gravity = Gravity.CENTER;
@@ -373,14 +362,7 @@ public class PdfViewerFragment extends Fragment {
                 public void run() {
                     pdfZoomedImageView.setImageBitmap(mBi);
                     photoViewAttacher.update();
-                }
-            });
-        }
-
-        private void updateUi() {
-            uiHandler.post(new Runnable() {
-                public void run() {
-                    updateTexts();
+                    updatePageNumbersView();
                 }
             });
         }
@@ -388,15 +370,6 @@ public class PdfViewerFragment extends Fragment {
         private void setPageBitmap(Bitmap bi) {
             if (bi != null) {
                 mBi = bi;
-            }
-        }
-
-        protected void updateTexts() {
-            if (mPdfPage != null) {
-                if (mBtPage != null)
-                    mBtPage.setText(mPdfPage.getPageNumber() + "/" + mPdfFile.getNumPages());
-                if (mBtPage2 != null)
-                    mBtPage2.setText(mPdfPage.getPageNumber() + "/" + mPdfFile.getNumPages());
             }
         }
 
@@ -421,7 +394,6 @@ public class PdfViewerFragment extends Fragment {
 
             int maxWidthToPopulate = mGraphView.getWidth();
             int maxHeightToPopulate = mGraphView.getHeight();
-
 
             int calculatedWidth;
             int calculatedHeight;
