@@ -13,8 +13,7 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
-import android.support.v7.app.ActionBar;
-import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -85,10 +84,7 @@ public class PdfViewerFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(final LayoutInflater inflater, @Nullable final ViewGroup container, @Nullable final Bundle savedInstanceState) {
-        Log.i(TAG, "onCreate");
         uiHandler = new Handler();
-
-        hideActionBar();
 
         progress = ProgressDialog.show(getActivity(), "Loading", "Loading PDF Page", true, true);
 
@@ -100,26 +96,17 @@ public class PdfViewerFragment extends Fragment {
 
         mPage = STARTPAGE;
 
-        final LinearLayout linearLayout = new LinearLayout(getActivity());
-        linearLayout.setOrientation(LinearLayout.VERTICAL);
-        final View view = LayoutInflater.from(getActivity()).inflate(R.layout.pfd_toolbar, null);
-        view.findViewById(R.id.pdf_toolbar_close_image).setOnClickListener(new OnClickListener() {
+        final Toolbar toolbar = (Toolbar) LayoutInflater.from(getActivity()).inflate(R.layout.pfd_toolbar, null);
+        toolbar.findViewById(R.id.pdf_toolbar_close_image).setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(final View v) {
                 getFragmentManager().popBackStack();
             }
         });
-        pageNumbersView = (TextView) view.findViewById(R.id.pdf_toolbar_page_numbers_text_view);
-        linearLayout.addView(view);
-        linearLayout.addView(setContent(password));
-        return linearLayout;
-    }
 
-    private void hideActionBar() {
-        final ActionBar actionBar = ((AppCompatActivity) getActivity()).getSupportActionBar();
-        if (actionBar != null) {
-            actionBar.hide();
-        }
+        replaceView(((ActionBarHidden) getActivity()).getCurrentActivityToolbarReplacedBy(toolbar), toolbar);
+        pageNumbersView = (TextView) toolbar.findViewById(R.id.pdf_toolbar_page_numbers_text_view);
+        return setContent(password);
     }
 
     @Override
@@ -129,6 +116,7 @@ public class PdfViewerFragment extends Fragment {
             getFragmentManager().popBackStack();
             return;
         }
+
         if (!passwordNeeded) {
             startRenderThread(mPage);
         } else {
@@ -351,8 +339,7 @@ public class PdfViewerFragment extends Fragment {
             setPageBitmap(null);
             //updateImage();
 
-
-            final LinearLayout.LayoutParams linearLayout = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1);
+            final LinearLayout.LayoutParams linearLayout = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
             setLayoutParams(linearLayout);
             addView(pdfZoomedImageView);
         }
@@ -479,6 +466,27 @@ public class PdfViewerFragment extends Fragment {
         }
     }
 
+    public static ViewGroup getParent(View view) {
+        return (ViewGroup) view.getParent();
+    }
+
+    public static void removeView(View view) {
+        ViewGroup parent = getParent(view);
+        if (parent != null) {
+            parent.removeView(view);
+        }
+    }
+
+    public static void replaceView(View currentView, View newView) {
+        ViewGroup parent = getParent(currentView);
+        if (parent == null) {
+            return;
+        }
+        final int index = parent.indexOfChild(currentView);
+        removeView(currentView);
+        parent.addView(newView, index);
+    }
+
     private int getPdfPasswordEditField() {
         return R.id.etPassword;
     }
@@ -489,6 +497,12 @@ public class PdfViewerFragment extends Fragment {
 
     private int getPdfPasswordExitButton() {
         return R.id.btExit;
+    }
+
+    public interface ActionBarHidden {
+
+        Toolbar getCurrentActivityToolbarReplacedBy(@NonNull final Toolbar toolbar);
+
     }
 
 }
