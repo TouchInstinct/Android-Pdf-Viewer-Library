@@ -97,6 +97,7 @@ public class PdfViewerFragment extends Fragment {
         mPage = STARTPAGE;
 
         final Toolbar toolbar = (Toolbar) LayoutInflater.from(getActivity()).inflate(R.layout.pfd_toolbar, null);
+        toolbar.setContentInsetsAbsolute(0, 0);
         toolbar.findViewById(R.id.pdf_toolbar_close_image).setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(final View v) {
@@ -363,60 +364,66 @@ public class PdfViewerFragment extends Fragment {
     }
 
     // TODO: refactor
-    private void showPage(int page) {
+    private void showPage(final int page) {
         try {
-            // free memory from previous page
-            mGraphView.setPageBitmap(null);
-            mGraphView.updateImage();
+            // on some Android getWidth() and getHeight() returns 0, so we need to wait until UI is ready
+            mGraphView.post(new Runnable() {
+                @Override
+                public void run() {
+                    // free memory from previous page
+                    mGraphView.setPageBitmap(null);
+                    mGraphView.updateImage();
 
-            // Only load the page if it's a different page (i.e. not just changing the zoom level)
-            if (mPdfPage == null || mPdfPage.getPageNumber() != page) {
-                mPdfPage = mPdfFile.getPage(page, true);
-            }
-
-            final int scale = 3;
-
-            float width = mPdfPage.getWidth() * scale;
-            float height = mPdfPage.getHeight() * scale;
-
-            int maxWidthToPopulate = mGraphView.getWidth();
-            int maxHeightToPopulate = mGraphView.getHeight();
-
-            int calculatedWidth;
-            int calculatedHeight;
-            final float widthRatio = width / maxWidthToPopulate;
-            final float heightRatio = height / maxHeightToPopulate;
-            if (width < maxWidthToPopulate && height < maxHeightToPopulate) {
-                if (widthRatio > heightRatio) {
-                    calculatedWidth = (int) (width / widthRatio);
-                    calculatedHeight = (int) (height / widthRatio);
-                } else {
-                    calculatedWidth = (int) (width / heightRatio);
-                    calculatedHeight = (int) (height / heightRatio);
-                }
-            } else {
-                if (widthRatio > 1 && heightRatio > 1) {
-                    if (widthRatio > heightRatio) {
-                        calculatedHeight = (int) (height / widthRatio);
-                        calculatedWidth = (int) (width / widthRatio);
-                    } else {
-                        calculatedHeight = (int) (height / heightRatio);
-                        calculatedWidth = (int) (width / heightRatio);
+                    // Only load the page if it's a different page (i.e. not just changing the zoom level)
+                    if (mPdfPage == null || mPdfPage.getPageNumber() != page) {
+                        mPdfPage = mPdfFile.getPage(page, true);
                     }
-                } else {
-                    if (widthRatio > heightRatio) {
-                        calculatedHeight = (int) (height / widthRatio);
-                        calculatedWidth = (int) (width / widthRatio);
-                    } else {
-                        calculatedHeight = (int) (height / heightRatio);
-                        calculatedWidth = (int) (width / heightRatio);
-                    }
-                }
-            }
 
-            final Bitmap bitmap = mPdfPage.getImage(calculatedWidth, calculatedHeight, null, true, true);
-            mGraphView.setPageBitmap(bitmap);
-            mGraphView.updateImage();
+                    final int scale = 3;
+
+                    double width = mPdfPage.getWidth() * scale;
+                    double height = mPdfPage.getHeight() * scale;
+
+                    int maxWidthToPopulate = mGraphView.getWidth();
+                    int maxHeightToPopulate = mGraphView.getHeight();
+
+                    int calculatedWidth;
+                    int calculatedHeight;
+                    final double widthRatio = width / maxWidthToPopulate;
+                    final double heightRatio = height / maxHeightToPopulate;
+                    if (width < maxWidthToPopulate && height < maxHeightToPopulate) {
+                        if (widthRatio > heightRatio) {
+                            calculatedWidth = (int) (width / widthRatio);
+                            calculatedHeight = (int) (height / widthRatio);
+                        } else {
+                            calculatedWidth = (int) (width / heightRatio);
+                            calculatedHeight = (int) (height / heightRatio);
+                        }
+                    } else {
+                        if (widthRatio > 1 && heightRatio > 1) {
+                            if (widthRatio > heightRatio) {
+                                calculatedHeight = (int) (height / widthRatio);
+                                calculatedWidth = (int) (width / widthRatio);
+                            } else {
+                                calculatedHeight = (int) (height / heightRatio);
+                                calculatedWidth = (int) (width / heightRatio);
+                            }
+                        } else {
+                            if (widthRatio > heightRatio) {
+                                calculatedHeight = (int) (height / widthRatio);
+                                calculatedWidth = (int) (width / widthRatio);
+                            } else {
+                                calculatedHeight = (int) (height / heightRatio);
+                                calculatedWidth = (int) (width / heightRatio);
+                            }
+                        }
+                    }
+
+                    final Bitmap bitmap = mPdfPage.getImage(calculatedWidth, calculatedHeight, null, true, true);
+                    mGraphView.setPageBitmap(bitmap);
+                    mGraphView.updateImage();
+                }
+            });
         } catch (Throwable e) {
             Log.e(TAG, e.getMessage(), e);
         }
