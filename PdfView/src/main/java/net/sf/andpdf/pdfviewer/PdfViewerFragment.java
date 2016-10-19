@@ -365,11 +365,11 @@ public class PdfViewerFragment extends Fragment {
 
     // TODO: refactor
     private void showPage(final int page) {
-        try {
-            // on some Android getWidth() and getHeight() returns 0, so we need to wait until UI is ready
-            mGraphView.post(new Runnable() {
-                @Override
-                public void run() {
+        // on some Android getWidth() and getHeight() returns 0, so we need to wait until UI is ready
+        mGraphView.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
                     // free memory from previous page
                     mGraphView.setPageBitmap(null);
                     mGraphView.updateImage();
@@ -422,11 +422,11 @@ public class PdfViewerFragment extends Fragment {
                     final Bitmap bitmap = mPdfPage.getImage(calculatedWidth, calculatedHeight, null, true, true);
                     mGraphView.setPageBitmap(bitmap);
                     mGraphView.updateImage();
+                } catch (Throwable e) {
+                    Log.e(TAG, e.getMessage(), e);
                 }
-            });
-        } catch (Throwable e) {
-            Log.e(TAG, e.getMessage(), e);
-        }
+            }
+        });
 
         hideProgressBar();
 
