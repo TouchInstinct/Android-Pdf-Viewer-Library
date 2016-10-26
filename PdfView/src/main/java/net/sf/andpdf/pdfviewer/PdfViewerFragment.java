@@ -1,22 +1,17 @@
 package net.sf.andpdf.pdfviewer;
 
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.app.Dialog;
 import android.app.ProgressDialog;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Gravity;
-import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -25,7 +20,6 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -43,7 +37,6 @@ import net.sf.andpdf.nio.ByteBuffer;
 import net.sf.andpdf.refs.HardReference;
 
 import java.io.IOException;
-import java.util.Locale;
 
 import uk.co.senab.photoview.PhotoViewAttacher;
 
@@ -63,8 +56,6 @@ public class PdfViewerFragment extends Fragment {
     public static final boolean DEFAULTSHOWIMAGES = true;
     public static final boolean DEFAULTANTIALIAS = true;
     public static final boolean DEFAULTUSEFONTSUBSTITUTION = false;
-
-    public static final String DIALOG_FRAGMENT_TAG_MARK = "DIALOG_FRAGMENT";
 
     private GraphView mGraphView;
     private PDFFile mPdfFile;
@@ -221,13 +212,6 @@ public class PdfViewerFragment extends Fragment {
         }
     }
 
-    private void gotoPage() {
-        if (mPdfFile != null) {
-            final Bundle bundle = new Bundle();
-            showDialogFragment(new GoToPageDialogFragment(), bundle);
-        }
-    }
-
     /**
      * Hides device keyboard that is showing over {@link Activity}.
      * Do NOT use it if keyboard is over {@link android.app.Dialog} - it won't work as they have different {@link Activity#getWindow()}.
@@ -241,77 +225,10 @@ public class PdfViewerFragment extends Fragment {
         getActivity().getWindow().getDecorView().requestFocus();
     }
 
-    public class GoToPageDialogFragment extends DialogFragment {
-
-        @NonNull
-        @Override
-        public Dialog onCreateDialog(final Bundle savedInstanceState) {
-            LayoutInflater factory = LayoutInflater.from(getActivity());
-            final View pagenumView = factory.inflate(R.layout.dialog_pagenumber, null);
-            final EditText edPagenum = (EditText) pagenumView.findViewById(R.id.pagenum_edit);
-            edPagenum.setText(String.format(Locale.getDefault(), "%d", mPage));
-            edPagenum.setOnEditorActionListener(new TextView.OnEditorActionListener() {
-
-                public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
-                    if (event == null || (event.getAction() == 1)) {
-                        // Hide the keyboard
-                        InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(INPUT_METHOD_SERVICE);
-                        imm.hideSoftInputFromWindow(edPagenum.getWindowToken(), 0);
-                    }
-                    return true;
-                }
-            });
-            return new AlertDialog.Builder(getActivity())
-                    //.setIcon(R.drawable.icon)
-                    .setTitle("Jump to page")
-                    .setView(pagenumView)
-                    .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int whichButton) {
-                            String strPagenum = edPagenum.getText().toString();
-                            int pageNum = mPage;
-                            try {
-                                pageNum = Integer.parseInt(strPagenum);
-                            } catch (NumberFormatException ignore) {
-                            }
-                            if ((pageNum != mPage) && (pageNum >= 1) && (pageNum <= mPdfFile.getNumPages())) {
-                                mPage = pageNum;
-                                mGraphView.bZoomOut.setEnabled(true);
-                                mGraphView.bZoomIn.setEnabled(true);
-                                progress = ProgressDialog.show(getActivity(), "Loading", "Loading PDF Page " + mPage, true, true);
-                                startRenderThread(mPage);
-                            }
-                        }
-                    })
-                    .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int whichButton) {
-                        }
-                    })
-                    .create();
-        }
-    }
-
-    public void showDialogFragment(@NonNull final DialogFragment dialogFragment, @Nullable final Bundle bundle) {
-        if (getFragmentManager().getFragments() != null) {
-            for (final Fragment fragment : getFragmentManager().getFragments()) {
-                // to fix bug with opening fragment several times on fast clicking
-                if (fragment != null && fragment.getClass() == dialogFragment.getClass()) {
-                    return;
-                }
-            }
-        }
-        if (bundle != null) {
-            dialogFragment.setArguments(bundle);
-        }
-        dialogFragment.show(getFragmentManager(), dialogFragment.getClass().getName() + ";" + DIALOG_FRAGMENT_TAG_MARK);
-    }
-
     private class GraphView extends FrameLayout {
         public Bitmap mBi;
         public ImageView pdfZoomedImageView;
         public PhotoViewAttacher photoViewAttacher;
-
-        ImageButton bZoomOut;
-        ImageButton bZoomIn;
 
         public GraphView(Context context) {
             super(context);
