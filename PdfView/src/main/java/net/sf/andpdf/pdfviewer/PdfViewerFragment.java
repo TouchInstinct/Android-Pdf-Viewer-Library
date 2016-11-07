@@ -23,7 +23,6 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.sun.pdfview.PDFFile;
 import com.sun.pdfview.PDFImage;
@@ -370,7 +369,8 @@ public class PdfViewerFragment extends Fragment {
                 mPdfFile = new PDFFile(bb, new PDFPassword(password));
             }
         } else {
-            Toast.makeText(getActivity(), "The error occurred", Toast.LENGTH_LONG).show();
+            hideProgressBar();
+            getFragmentManager().popBackStack();
         }
     }
 
