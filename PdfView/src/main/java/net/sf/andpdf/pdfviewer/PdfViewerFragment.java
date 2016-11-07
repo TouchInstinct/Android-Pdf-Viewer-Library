@@ -300,6 +300,16 @@ public class PdfViewerFragment extends Fragment {
             int maxWidthToPopulate = mGraphView.getWidth();
             int maxHeightToPopulate = mGraphView.getHeight();
 
+            if (maxWidthToPopulate == 0 || maxHeightToPopulate == 0) {
+                mGraphView.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        showPage(page);
+                    }
+                });
+                return;
+            }
+
             int calculatedWidth;
             int calculatedHeight;
             final double widthRatio = width / maxWidthToPopulate;
@@ -331,7 +341,6 @@ public class PdfViewerFragment extends Fragment {
                     }
                 }
             }
-
             final Bitmap bitmap = mPdfPage.getImage(calculatedWidth, calculatedHeight, null, true, true);
             mGraphView.setPageBitmap(bitmap);
             mGraphView.updateImage();
