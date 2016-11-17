@@ -111,9 +111,6 @@ public class HeadTable extends TrueTypeTable {
      * Parse the data before it is set
      */
     public void setData(ByteBuffer data) {
-        if (data.remaining() != 54) {
-            throw new IllegalArgumentException("Bad Head table size");
-        }
         setVersion(data.getInt());
         setFontRevision(data.getInt());
         setChecksumAdjustment(data.getInt());
